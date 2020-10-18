@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ffmpeg-streamer
+  labels:
+    app: ffmpeg
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ffmpeg
+  template:
+    metadata:
+      labels:
+        app: ffmpeg
+    spec:
+      containers:
+      - name: ffmpeg
+        image: gorzek/ffmpeg:arm64v8-latest
+        imagePullPolicy: Always
+        command: ["ffmpeg"]
+        args: ["-stats","-re","-f","concat",
+          "-safe","0","-i","/media/playlist0.txt",
+          "-progress","-","-nostats",
+          "-c:v","copy",
+          "-c:a","copy",
+          "-f","flv","[YOUR_STREAMING_URL_HERE]"]
+        volumeMounts:
+        - name: ffmpeg-storage
+          mountPath: /media
+      - name: djmarinara
+        image: gorzek/djmarinara:arm64v8-latest
+        imagePullPolicy: Always
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        command: ["python3"]
+        args: ["main.py"]
+        workingDir: /home
+        volumeMounts:
+        - name: ffmpeg-storage
+          mountPath: /media
+      initContainers:
+        - name: ffmpeg-bootstrap
+          image: gorzek/ffmpeg-bootstrap:arm64v8-latest
+          imagePullPolicy: Always
+          command: ["cp","startup.flv","playlist0.txt","playlist1.txt","/media/"]
+          volumeMounts:
+            - name: ffmpeg-storage
+              mountPath: /media
+      volumes:
+      - name: ffmpeg-storage
+        emptyDir:
+          medium: Memory
