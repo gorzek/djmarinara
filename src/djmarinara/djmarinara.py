@@ -18,7 +18,7 @@ from pathlib import Path
 __author__ = "Rob Knight, Gavin Huttley, and Peter Maxwell"
 __copyright__ = "Copyright 2020, James Huffman"
 __credits__ = ["James Huffman"]
-__license__ = "GPL"
+__license__ = "Unlicense"
 __version__ = "1.0.1"
 __maintainer__ = "James Huffman"
 __email__ = "gorzek@gmail.com"
