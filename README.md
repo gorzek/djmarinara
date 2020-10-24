@@ -45,7 +45,7 @@ Please note that the same caveats apply in terms of building your own Docker ima
 
 ## Configuration
 
-Regardless of run method, you'll need to edit a few files to your needs.
+Regardless of run method, you'll need to edit the djmarinara script to fit your needs.
 
 For `src/djmarinara/main.py`, you can edit the following in the noted configuration section:
 
@@ -82,6 +82,7 @@ There are plenty of features and fixes planned. In no particular order:
 * Efficiency improvements in conversion of music modules. Some use a vast amount of CPU and can have sub-real-time rendering speeds on low-power hardware.
 * Add visualizer presets and make them user-configurable, while letting djmarinara choose them randomly when rendering.
 * Add option to convert and play videos instead of just songs.
+* Recommendations for fixed-width fonts that accurately render ASCII art.
 
 ## Copyright Warning
 

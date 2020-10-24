@@ -15,7 +15,7 @@ import urllib.parse as parse
 from contextlib import closing
 from pathlib import Path
 
-__author__ = "Rob Knight, Gavin Huttley, and Peter Maxwell"
+__author__ = "James Huffman"
 __copyright__ = "Copyright 2020, James Huffman"
 __credits__ = ["James Huffman"]
 __license__ = "Unlicense"
@@ -320,18 +320,25 @@ class djmarinara:
             stderr=subprocess.STDOUT)
         print(convert.communicate()[0].decode("utf-8"))
         # Duration may have changed, so check it again.
-        probe = subprocess.Popen(['ffprobe',
-                                "out.aac",
-                                '-v',
-                                'quiet',
-                                '-print_format',
-                                'json=compact=1',
-                                '-show_format'],
+        probe = subprocess.Popen(['ffmpeg',
+                                  '-nostdin',
+                                  '-hide_banner',
+                                  '-nostats',
+                                  '-loglevel',
+                                  'info',
+                                  '-i','out.aac',
+                                  '-f','null',
+                                  '-c','copy',
+                                  '-'],
             stdout=subprocess.PIPE, 
             stderr=subprocess.STDOUT)
-        filejson = json.loads(probe.communicate()[0].decode("utf-8"))
+        output = probe.communicate()[0].decode("utf-8")
+        print(output)
+        newduration = output.split("time=")[1].split(" ")[0]
+        convertedduration = sum(x * float(t) for x, t in zip([1, 60, 3600], reversed(newduration.split(":"))))
         try:
-            filedata['duration'] = filejson['format']['duration']
+            filedata['duration'] = convertedduration
+            print("True duration is:",filedata['duration'])
         except:
             # No duration? No can do!
             print("Skipping due to no duration:",file)
