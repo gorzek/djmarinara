@@ -53,9 +53,10 @@ For `src/djmarinara/main.py`, you can edit the following in the noted configurat
 * `temppath` - Files are stored here temporarily during processing. You shouldn't have to change this.
 * `mediapath` - This is where your rendered videos and playlists are stored. If you change this, make sure when you run ffmpeg you point to the proper location for `playlist0.txt`.
 * `playlisturl` - This needs to be a list of URLs of songs to play, one per line. `zip` files are fine, too, so long as they contain one or more songs. (A song is chosen at random from `zip` files containing more than one.)
-* `fonturl` - URL to a font to use for rendering text on the videos. Fixed-width is preferred if playing music modules, as many contain ASCII art in their comments.
+* `fonturl` - URL to a font to use for rendering text on the videos. Fixed-width is preferred if playing music modules, as many contain ASCII art in their comments. Any of the fonts from this site that support code page 437 are highly recommended: [https://int10h.org/oldschool-pc-fonts/]
 * `startupvideo` - This is a URL to a video that will be played until there are some songs queued up. Pick something a minute or two long that is pleasant to listen to and look at. :)
 * `gastanklimit` - You probably won't have to change this. It defines, in seconds, how much djmarinara should have pre-rendered before taking a break. It's not perfect and will be replaced with a more adaptive method in the future.
+* `targetspeed` - Target pre-rendering speed. 2.0 is a safe default, but set it higher if you have CPU to spare!
 
 ## Quirks and Limitations
 
@@ -78,11 +79,9 @@ There are plenty of features and fixes planned. In no particular order:
 * More intelligent switching from standby video to the actual playlist.
 * Option to play a playlist in order instead of just randomly.
 * Fix some quirks with the scrolling speed of info text when there is a *lot* of text.
-* Adaptive video quality adjustment to aim for a target rendering speed.
 * Efficiency improvements in conversion of music modules. Some use a vast amount of CPU and can have sub-real-time rendering speeds on low-power hardware.
 * Add visualizer presets and make them user-configurable, while letting djmarinara choose them randomly when rendering.
 * Add option to convert and play videos instead of just songs.
-* Recommendations for fixed-width fonts that accurately render ASCII art.
 
 ## Copyright Warning
 
