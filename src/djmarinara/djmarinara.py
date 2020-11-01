@@ -19,7 +19,7 @@ __author__ = "James Huffman"
 __copyright__ = "Copyright 2020, James Huffman"
 __credits__ = ["James Huffman"]
 __license__ = "Unlicense"
-__version__ = "1.0.1"
+__version__ = "1.0.3"
 __maintainer__ = "James Huffman"
 __email__ = "gorzek@gmail.com"
 
@@ -30,7 +30,8 @@ class djmarinara:
             playlisturl="",
             fonturl="",
             startupvideo="",
-            gastanklimit=3600.0):
+            gastanklimit=3600.0,
+            targetspeed=2.0):
         self.extensions = extensions
         self.temppath = temppath
         self.mediapath = mediapath
@@ -42,6 +43,13 @@ class djmarinara:
         self.linewidth = 80
         self.getFont()
         self.maxlength = (gastanklimit / 2.0)
+        self.manifest = open('manifest','r').read().split("\n")
+        self.crf = 17
+        self.mincrf = 17        # Best quality with compression
+        self.maxcrf = 28        # Worst acceptable quality
+        self.targetspeed = targetspeed
+        self.qualitypresets = ['ultrafast','superfast','veryfast','faster','fast','medium','slow','slower','veryslow']
+        self.preset = 0         # Use ultrafast to start
     def initRun(self):
         self.gastank = 0
         self.getFileNumber()
@@ -229,6 +237,24 @@ class djmarinara:
             processtook = processend-processstart
             ratio = float(filedata['duration']) / processtook
             print("File processing took",processtook,"seconds, ran at",ratio,"x...")
+            # Reduce quality to improve render time
+            # Or improve quality if we have render time to spare
+            if ratio < self.targetspeed:
+                self.crf += 1
+            elif ratio > self.targetspeed:
+                self.crf -= 1
+            self.crf = self.clamp(self.crf, self.mincrf, self.maxcrf)
+            # Adjust quality preset, too
+            if ratio < (self.targetspeed - 0.5) and self.preset > 0:
+                # Too slow
+                # Faster preset!
+                self.preset -= 1
+            elif ratio > (self.targetspeed + 0.5) and self.preset < 8:
+                # Too fast
+                # Slower preset!
+                self.preset += 1
+            print("Quality preset is now:",self.qualitypresets[self.preset])
+            print("CRF is now:",self.crf)
         except:
             print("Failed to obtain or process file:",filename)
             print('-'*60)
@@ -359,9 +385,9 @@ class djmarinara:
                                     "-c:v","libx264",
                                     "-x264-params","nal-hrd=cbr:force-cfr=1",
                                     "-b:v","4.5M",
-                                    "-preset","ultrafast",
+                                    "-preset",self.qualitypresets[self.preset],
                                     "-tune","fastdecode",
-                                    "-crf","31",
+                                    "-crf",str(self.crf),
                                     "-maxrate","4.5M",
                                     "-minrate","4.5M",
                                     "-bufsize","9M",
@@ -472,8 +498,9 @@ class djmarinara:
         filelist = glob.glob(self.mediapath + '/media*.flv')
         filelist.sort(key=self.naturalKeys)
         diskusage = shutil.disk_usage(self.mediapath)
-        print("Disk usage:",diskusage.used,"of",diskusage.total,"(",diskusage.used/diskusage.total,"%)")
-        while (diskusage.used/diskusage.total)>0.8:
+        diskpercent = (diskusage.used/diskusage.total) * 100.0
+        print("Disk usage:",diskusage.used,"of",diskusage.total,"(",diskpercent,"%)")
+        while (diskusage.used/diskusage.total) > 0.8:
             done = 0
             while not done:
                 # Can't operate on an empty list
@@ -491,18 +518,16 @@ class djmarinara:
         # Only keep font.ttf and djmarinara.py
         filelist = glob.glob('./*')
         for file in filelist:
-            if file.find("font.ttf") == -1 \
-                and file.find("djmarinara.py") == -1 \
-                and file.find("__pycache__") == -1 \
-                and file.find("main.py") == -1 \
-                and file.find("Dockerfile") == -1 \
-                and file.find("ffmpeg-tests.txt") == -1:
-                print("Removing errant temporary file:",file)
+            filename = Path(file).name
+            if filename not in self.manifest:
+                print("Removing errant temporary file:",filename)
                 os.remove(file)
     def atoi(self,text):
         return int(text) if text.isdigit() else text
     def naturalKeys(self,text):
         return [ self.atoi(c) for c in re.split(r'(\d+)',text) ]
+    def clamp(self, n, minn, maxn):
+        return max(min(maxn, n), minn)
 
 if __name__ == '__main__':
     pass
