@@ -12,19 +12,19 @@ djmarinara does the following:
 import glob
 import hashlib
 import json
+import logging
 import os
 import random
 import re
 import shutil
 import subprocess
-import sys
 import textwrap
 import time
-import traceback
 import urllib.parse as parse
 import urllib.request as request
 import zipfile
 from contextlib import closing
+from datetime import datetime
 from pathlib import Path
 
 __author__ = "James Huffman"
@@ -67,6 +67,9 @@ class djmarinara:
                                'veryslow']
         self.preset = 0  # Use ultrafast to start
 
+        now_str = datetime.now().strftime("%y%m%d_%H%M%S")
+        logging.basicConfig(filename=f'djmarinara-{now_str}.log', encoding='utf-8', level=logging.DEBUG)
+
     def initRun(self):
         self.gastank = 0
         self.getFileNumber()
@@ -81,7 +84,7 @@ class djmarinara:
 
     def sanityCheck(self):
         if not os.path.exists(os.path.join(self.mediapath, "playlist0.txt")):
-            print("Playlist sanity check failed. Fixing...")
+            logging.error("Playlist sanity check failed. Fixing...")
             outfile = open('/media/playlist0.txt', 'w')
             outfile.write("ffconcat version 1.0\n")
             outfile.write("file startup.flv\n")
@@ -94,19 +97,19 @@ class djmarinara:
             outfile.close()
             self.filenumber = 0
         if not os.path.exists(os.path.join(self.mediapath, "startup.flv")):
-            print("Startup video sanity check failed. Fixing...")
+            logging.error("Startup video sanity check failed. Fixing...")
             with closing(request.urlopen(self.startupvideo)) as r:
-                print("Opening URL:", self.startupvideo)
+                logging.info("Opening URL:", self.startupvideo)
                 with open("/media/startup.flv", 'wb') as f:
-                    print("Downloading:", "/media/startup.flv")
+                    logging.info("Downloading: /media/startup.flv")
                     shutil.copyfileobj(r, f)
             self.filenumber = 0
 
     def getFont(self):
         with closing(request.urlopen(self.fonturl)) as r:
-            print("Opening URL:", self.fonturl)
+            logging.info(f'Opening URL: {self.fonturl}')
             with open('font.ttf', 'wb') as f:
-                print("Downloading:", 'font.ttf')
+                logging.info("Downloading: font.ttf")
                 shutil.copyfileobj(r, f)
 
     def getFileNumber(self):
@@ -120,9 +123,9 @@ class djmarinara:
             if lastnumber == 1:
                 lastnumber = 0
         except:
-            print("Couldn't find valid startup files!")
+            logging.error("Couldn't find valid startup files!")
             lastnumber = 0
-        print("File number is now:", lastnumber)
+        logging.info(f'File number is now: {lastnumber}')
         self.filenumber = lastnumber
 
     def playlistCheck(self):
@@ -135,14 +138,14 @@ class djmarinara:
             # Otherwise, check the gas tank. Pre-render if we're not full.
             # If we're full, just sleep for 60 seconds.
             if (newhash != self.listhash):
-                print("Remote playlist updated!")
+                logging.info("Remote playlist updated!")
                 self.listhash = newhash
                 self.updatePlaylist(str(buf))
             elif self.checkGas() < self.gastanklimit:
-                print("Filling up gas tank! (", self.gastank, " of ", self.gastanklimit, " seconds ready...)")
+                logging.info(f'Filling up gas tank! ({self.gastank} of {self.gastanklimit} seconds ready...)')
                 self.updatePlaylist(str(buf))
             else:
-                print("Gas tank is at ", self.gastank, " seconds, so wait...")
+                logging.info(f'Gas tank is at {self.gastank} seconds, so wait...')
                 # Sleep until the gas tank falls below full.
                 time.sleep(self.gastank - self.gastanklimit)
 
@@ -152,14 +155,14 @@ class djmarinara:
         curtime = time.time()
         newelapsed = curtime - self.starttime
         gasused = newelapsed - self.elapsedtime
-        print("Elapsed since start:", newelapsed)
-        print("Gas used this round:", gasused)
+        logging.info(f'Elapsed since start: {newelapsed}')
+        logging.info(f'Gas used this round: {gasused}')
         self.gastank -= gasused
         self.elapsedtime = newelapsed
         return self.gastank
 
     def processZip(self, zf):
-        print("Unzipping:", zf)
+        logging.info(f'Unzipping: {zf}')
         playfile = ""
         candidates = []
         # Wrap the entire zipfile block
@@ -180,15 +183,15 @@ class djmarinara:
                                 candidatepath = os.path.join(root, file)
                                 candidatepath = candidatepath.replace("\\", "/")
                                 candidates.append(candidatepath)
-                                print("Candidate file:", candidatepath)
+                                logging.info(f'Candidate file: {candidatepath}')
                 except:
                     # Naughty zip file!
                     # Just skip it.
-                    print("Bad zip file:", zf)
-                    print("We'll skip this one...")
+                    logging.error(f'Bad zip file: {zf}')
+                    logging.error("We'll skip this one...")
         except:
-            print("Bad zip file:", zf)
-            print("We'll skip this one...")
+            logging.error(f'Bad zip file: {zf}')
+            logging.error("We'll skip this one...")
         if len(candidates) > 0:
             choice = random.choice(candidates)
             playfile = choice.split("/")[-1].lower()
@@ -206,17 +209,17 @@ class djmarinara:
     def processFile(self, file):
         processstart = time.time()
         filename = file.split("/")[-1].lower()
-        print("Filename:", filename)
+        logging.info(f'Filename: {filename}')
         parts = file.split("://")
         protocol = parts[0]
         urlstring = parts[1]
         newfile = protocol + "://" + parse.quote(urlstring)
-        print("Parsed:", newfile)
+        logging.info(f'Parsed: {newfile}')
         try:
             with closing(request.urlopen(newfile)) as r:
-                print("Opening URL:", file)
+                logging.info(f'Opening URL: {file}')
                 with open(filename, 'wb') as f:
-                    print("Downloading:", filename)
+                    logging.info(f'Downloading: {filename}')
                     shutil.copyfileobj(r, f)
                 # ZIP files need to be extracted and scanned.
                 if filename.endswith('.zip'):
@@ -244,7 +247,7 @@ class djmarinara:
                     playfile = filedata['playfile']
                 # Copy file to destination
                 # It's expected that playfile is in the current directory
-                print("Queueing:", playfile)
+                logging.info(f'Queueing: {playfile}')
                 shutil.copy(playfile, self.mediapath + "/" + playfile)
                 # Add playfile to a playlist in /media
                 # Increment filenumber
@@ -261,7 +264,7 @@ class djmarinara:
             processend = time.time()
             processtook = processend - processstart
             ratio = float(filedata['duration']) / processtook
-            print("File processing took", processtook, "seconds, ran at", ratio, "x...")
+            logging.info(f'File processing took {processtook} seconds, ran at {ratio} x...')
             # Reduce quality to improve render time
             # Or improve quality if we have render time to spare
             if ratio < self.targetspeed:
@@ -278,24 +281,24 @@ class djmarinara:
                 # Too fast
                 # Slower preset!
                 self.preset += 1
-            print("Quality preset is now:", self.qualitypresets[self.preset])
-            print("CRF is now:", self.crf)
-        except:
-            print("Failed to obtain or process file:", filename)
-            print('-' * 60)
-            traceback.print_exc(file=sys.stdout)
-            print('-' * 60)
+            logging.info(f'Quality preset is now: {self.qualitypresets[self.preset]}')
+            logging.info(f'CRF is now: {self.crf}')
+        except Exception as e:
+            logging.error(f'Failed to obtain or process file:{filename}')
+            logging.error('-' * 60)
+            logging.error(e)
+            logging.error('-' * 60)
             return 0
         return 1
 
     def convertFile(self, file):
         # First need to probe file to obtain some info about it
-        print("Probing:", file, "...")
+        logging.info(f'Probing: {file} ...')
         probe = subprocess.Popen(['ffprobe',
                                   file,
                                   '-v',
                                   'quiet',
-                                  '-print_format',
+                                  '-logging.info_format',
                                   'json=compact=1',
                                   '-show_format'],
                                  stdout=subprocess.PIPE,
@@ -312,48 +315,48 @@ class djmarinara:
         #       'Funky Squad by\n             FireLight\n\nInspired by those hip \ncats the d-generation \nand their tv show\nfunky squad :)\nOriginal guitar samples\nmade at a friends house\nusing his guitar+wah pedal.\nSupports the global volume\neffect (fade out at end) &\nfine vibrato so make sure\nyou use a decent player.\n'
         # }}}
         filedata = {}
+
         try:
             filedata['filename'] = filejson['format']['filename']
         except:
             # No filename? No can do!
-            print("Skipping due to no filename:", file)
+            logging.error(f'Skipping due to no filename: {file}')
             return {}
+
         try:
             filedata['title'] = filejson['format']['tags']['title']
         except:
             # No title? No can do!
-            print("Skipping due to no title:", file)
+            logging.error(f'Skipping due to no title: {file}')
             return {}
-        try:
-            filedata['artist'] = filejson['format']['tags']['artist']
-        except:
-            pass
-        try:
-            filedata['comments'] = filejson['format']['tags']['comment']
-        except:
-            pass
+
         try:
             filedata['duration'] = filejson['format']['duration']
         except:
             # No duration? No can do!
-            print("Skipping due to no duration:", file)
+            logging.error(f'Skipping due to no duration: {file}')
             return {}
+
+        filedata['artist'] = filejson.get('format').get('tags').get('artist')
+        filedata['comments'] = filejson.get('format').get('tags').get('comment')
+
         # Don't allow songs longer than maxlength
         # maxlength is always half the gastanklimit
         if float(filedata['duration']) > self.maxlength:
-            print("Skipping due to excessive length:", file)
+            logging.error(f'Skipping due to excessive length: {file}')
             return {}
+
         filedata['playfile'] = file
         if 'comments' in filedata.keys():
-            print("File comments:")
-            print(filedata['comments'])
+            logging.info("File comments:")
+            logging.info(filedata['comments'])
         filecount = str(self.filenumber + 1)
         filedata['playfile'] = 'media' + filecount + '.flv'
         filedata['textfile'] = 'media' + filecount + '.txt'
         self.makeText(filedata)
         # Then, convert to a video
         # ffmpeg -i [FILE] -y -loglevel warning -nostats -hide_banner -filter_complex "[0:a]showcqt=sono_h=0:axis=0:s=1920x1080:fps=30:bar_h=1080:cscheme=1|0|1|0|1|0:csp=bt470bg[left]; [left] drawtext=fontfile=/usr/share/fonts/TTF/Vera.ttf:fontcolor=white:x=20:y=h-mod(max(t-0.0\,0)*(h+th)/44.0\,(h+th)):text='\"Song Title\" by Artist'[out]" -map "[out]" -map 0:a -c:v libx264 -preset ultrafast -tune fastdecode -crf 31 -ar 44100 -c:a aac output.flv
-        print("Converting", file, "to", filedata['playfile'], "...")
+        logging.info(f'Converting {file} to {filedata.get("playfile")} ...')
         # First conversion trims starting/ending silence and turns into AAC.
         convert = subprocess.Popen(["ffmpeg",
                                     "-i",
@@ -370,7 +373,7 @@ class djmarinara:
                                     "out.aac"],
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT)
-        print(convert.communicate()[0].decode("utf-8"))
+        logging.info(convert.communicate()[0].decode("utf-8"))
         # Duration may have changed, so check it again.
         probe = subprocess.Popen(['ffmpeg',
                                   '-nostdin',
@@ -385,16 +388,12 @@ class djmarinara:
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.STDOUT)
         output = probe.communicate()[0].decode("utf-8")
-        print(output)
+        logging.info(output)
         newduration = output.split("time=")[1].split(" ")[0]
         convertedduration = sum(x * float(t) for x, t in zip([1, 60, 3600], reversed(newduration.split(":"))))
-        try:
-            filedata['duration'] = convertedduration
-            print("True duration is:", filedata['duration'])
-        except:
-            # No duration? No can do!
-            print("Skipping due to no duration:", file)
-            return {}
+        filedata['duration'] = convertedduration
+        logging.info(f'True duration is: {filedata.get("duration")}')
+
         # Cap fadeouttime at 0 seconds; don't go negative!
         fadeouttime = max(0, float(filedata['duration']) - 5.0)
         convert = subprocess.Popen(["ffmpeg",
@@ -425,11 +424,11 @@ class djmarinara:
                                     filedata['playfile']],
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT)
-        print(convert.communicate()[0].decode("utf-8"))
+        logging.info(convert.communicate()[0].decode("utf-8"))
         filesize = os.path.getsize(filedata['playfile'])
         if (filesize == 0):
             # Empty file? No good!
-            print("Skipping due to conversion failure:", file)
+            logging.error(f'Skipping due to conversion failure: {file}')
             return {}
         # Remove original file
         os.remove(file)
@@ -469,8 +468,8 @@ class djmarinara:
                                   drop_whitespace=False, break_long_words=False, break_on_hyphens=False))
             else:
                 outstring += l
-        print("Wrapped lines:")
-        print(outstring)
+        logging.info("Wrapped lines:")
+        logging.info(outstring)
         handle.write(outstring)
         handle.close()
 
@@ -483,7 +482,7 @@ class djmarinara:
             extension = choice.split(".")[-1].lower()
             if extension not in self.extensions:
                 continue
-            print("Selected:", choice)
+            logging.info(f'Selected: {choice}')
             # Process the selected file.
             status = self.processFile(choice)
             # No sleep time? We didn't get a song!
@@ -505,7 +504,7 @@ class djmarinara:
         try:
             newfile = filelist.pop(0)
             newplaylist = newfile.split("/")[-1]
-            print("Updating playlist0.txt to start at", newplaylist, "...")
+            logging.info(f'Updating playlist0.txt to start at {newplaylist} ...')
             outfile = open('/media/playlist0.txt', 'w')
             outfile.write("ffconcat version 1.0\n")
             outfile.write("file startup.flv\n")
@@ -523,7 +522,7 @@ class djmarinara:
             st = os.stat(os.path.join(self.mediapath, file))
             mtime = st.st_mtime
             if mtime < timeago:
-                print("Cleaning up:", file)
+                logging.info(f'Cleaning up: {file}')
                 number = int(''.join(list(filter(str.isdigit, file))))
                 os.remove(os.path.join(self.mediapath, file))
                 os.remove(os.path.join(self.mediapath, 'playlist' + str(number) + '.txt'))
@@ -533,7 +532,7 @@ class djmarinara:
         filelist.sort(key=self.naturalKeys)
         diskusage = shutil.disk_usage(self.mediapath)
         diskpercent = (diskusage.used / diskusage.total) * 100.0
-        print("Disk usage:", diskusage.used, "of", diskusage.total, "(", diskpercent, "%)")
+        logging.info(f'Disk usage: {diskusage.used} of {diskusage.total} ({diskpercent}%)')
         while (diskusage.used / diskusage.total) > 0.8:
             done = 0
             while not done:
@@ -541,7 +540,7 @@ class djmarinara:
                 if len(filelist) == 0:
                     return
                 item = filelist.pop(0)
-                print("Removing file to free up disk:", item)
+                logging.info(f'Removing file to free up disk: {item}')
                 number = int(''.join(list(filter(str.isdigit, item))))
                 os.remove(os.path.join(self.mediapath, item))
                 os.remove(os.path.join(self.mediapath, 'playlist' + str(number) + '.txt'))
@@ -554,7 +553,7 @@ class djmarinara:
         for file in filelist:
             filename = Path(file).name
             if filename not in self.manifest:
-                print("Removing errant temporary file:", filename)
+                logging.info(f'Removing errant temporary file: {filename}')
                 os.remove(file)
 
     def atoi(self, text):
