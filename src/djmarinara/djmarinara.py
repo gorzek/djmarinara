@@ -31,7 +31,7 @@ __author__ = "James Huffman"
 __copyright__ = "Copyright 2020, James Huffman"
 __credits__ = ["James Huffman"]
 __license__ = "Unlicense"
-__version__ = "1.0.3"
+__version__ = "1.0.5"
 __maintainer__ = "James Huffman"
 __email__ = "gorzek@gmail.com"
 
@@ -99,7 +99,7 @@ class djmarinara:
         if not os.path.exists(os.path.join(self.mediapath, "startup.flv")):
             logging.error("Startup video sanity check failed. Fixing...")
             with closing(request.urlopen(self.startupvideo)) as r:
-                logging.info("Opening URL:", self.startupvideo)
+                logging.info(f'Opening URL: {self.startupvideo}')
                 with open("/media/startup.flv", 'wb') as f:
                     logging.info("Downloading: /media/startup.flv")
                     shutil.copyfileobj(r, f)
@@ -298,7 +298,7 @@ class djmarinara:
                                   file,
                                   '-v',
                                   'quiet',
-                                  '-logging.info_format',
+                                  '-print_format',
                                   'json=compact=1',
                                   '-show_format'],
                                  stdout=subprocess.PIPE,
@@ -447,10 +447,10 @@ class djmarinara:
         handle = open(data['textfile'], 'w', encoding='utf-8')
         outlines = []
         outlines.append("Title: " + data['title'] + "\n")
-        if 'artist' in data.keys():
+        if 'artist' in data.keys() and type(data['artist']) != type(None):
             outlines.append("Artist: " + data['artist'] + "\n")
         outlines.append("Filename: " + data['filename'] + "\n")
-        if 'comments' in data.keys():
+        if 'comments' in data.keys() and type(data['comments']) != type(None):
             outlines.append("Comments:\n")
             # Need to split comments if they're multi-line.
             # This is to prevent bad text wrapping behavior.
